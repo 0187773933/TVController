@@ -7,7 +7,6 @@
 	- IR
 
 - Todo :
-	- Better HDMICEC support
 	- LG Apps
 		- `npm install -g @webosose/ares-cli`
 		- https://webostv.developer.lge.com/develop/tools/cli-installation
