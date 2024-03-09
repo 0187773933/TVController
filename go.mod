@@ -3,7 +3,7 @@ module github.com/0187773933/TVController
 go 1.22.0
 
 require (
-	github.com/0187773933/HDMICEC v1.0.9
+	github.com/0187773933/HDMICEC v1.0.3
 	github.com/0187773933/IRController v1.0.7
 	github.com/0187773933/LGTVController v0.0.0-20230917160125-3fd2f2b61451
 	github.com/0187773933/VizioController v1.0.19
