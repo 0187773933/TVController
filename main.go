@@ -16,7 +16,7 @@ func main() {
 	utils.PrettyPrint( config )
 	tv := tv_controller.New( &config )
 	fmt.Println( tv )
-	// tv.Reset()
-	tv.ResetAudio()
-	tv.ResetVideo()
+	tv.Prepare()
+	// status := tv.Status()
+	// utils.PrettyPrint( status )
 }

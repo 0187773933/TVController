@@ -180,50 +180,34 @@ func ( c *Controller ) Reset() {
 	return
 }
 
-func ( c *Controller ) ResetAudio() {
-	switch c.Type{
-		case "lg":
-			fmt.Println( "lg === todo" )
-			break;
-		case "samsung":
-			fmt.Println( "samsung === todo" )
-			break;
-		case "vizio":
-			fmt.Println( "vizio === todo" )
-			break;
-		case "hdmicec":
-			fmt.Println( "hdmicec === todo" )
-			break;
-		case "ir":
-			fmt.Println( "ir === todo" )
-			break;
-		case "ir+hdmicec":
-			fmt.Println( "ir+hdmicec === ResetAudio()" )
-			if c.IR_Ready {
-				volume_down := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "volume_down" ].Code
-				volume_up := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "volume_up" ].Code
-				if volume_down != "" && volume_up != "" {
-					fmt.Println( "Resetting Volume" )
-					for i := 0; i < c.Config.VolumeResetLimit; i++ {
-						fmt.Printf( "Volume Down %d of %d\n" , i , c.Config.VolumeResetLimit )
-						c.IR.Transmit( volume_down )
-						time.Sleep( 500 * time.Millisecond )
-					}
-					fmt.Println( "Done With Volume Down" )
-					time.Sleep( 500 * time.Millisecond )
-					for i := 0; i < c.Config.DefaultVolume; i++ {
-						fmt.Printf( "Volume Up %d of %d\n" , i , c.Config.DefaultVolume )
-						c.IR.Transmit( volume_up )
-						time.Sleep( 500 * time.Millisecond )
-					}
-				}
-			}
-			break;
+func ( c *Controller ) Prepare() {
+	fmt.Println( "Prepare()" )
+	status := c.Status()
+	utils.PrettyPrint( status )
+	if status.Power == false {
+		fmt.Println( "Prepare() --> Power == false" )
+		time.Sleep( 1200 * time.Millisecond )
+		c.PowerOn()
+		time.Sleep( 1200 * time.Millisecond )
+		c.SetInput( c.Config.DefaultInput )
+		time.Sleep( 1200 * time.Millisecond )
+		c.SetVolume( c.Config.DefaultVolume )
+		return
 	}
+	if status.HDMIInput != c.Config.DefaultInput {
+		fmt.Println( "Prepare() --> Resetting HDMI Input" )
+		c.SetInput( c.Config.DefaultInput )
+	}
+	if status.Volume != -1 && status.Volume != c.Config.DefaultVolume {
+		fmt.Println( "Prepare() --> Resetting Volume" )
+		c.SetVolume( c.Config.DefaultVolume )
+	}
+	fmt.Println( "Prepare() --> Done" )
 	return
 }
 
-func ( c *Controller ) ResetVideo() {
+
+func ( c *Controller ) ResetVideo( already_on bool ) {
 	switch c.Type{
 		case "lg":
 			fmt.Println( "lg === todo" )
@@ -258,20 +242,81 @@ func ( c *Controller ) ResetVideo() {
 
 type Status struct {
 	Volume int `json:"volume"`
-	Input int `json:"input"`
 	Power bool `json:"power"`
+	HDMIInput int `json:"hdmi_input"`
+	HDMIVendor string `json:"hdmi_vendor"`
+	HDMIOSDString string `json:"hdmi_osd_string"`
+	HDMIPower bool `json:"hdmi_power"`
 }
 
 func ( c *Controller ) Status() ( result Status ) {
-	fmt.Println( "TV.Status()" )
-	result.Volume = c.GetVolume()
-	fmt.Println( "Volume === " , result.Volume )
-	result.Input = c.GetInput()
-	fmt.Println( "Input === " , result.Input )
-	result.Power = c.GetPowerStatus()
-	fmt.Println( "Power === " , result.Power )
-	// result.Mute = c.GetMute()
-	// log.Debug( "Mute === " , result.Mute )
+	switch c.Type{
+		case "lg":
+			volume_string := c.LG.API( "get_volume" )
+			result.Volume = utils.StringToInt( volume_string )
+			inputs_string := c.LG.API( "get_inputs" )
+			fmt.Println( "lg === to do , unknown what get_inputs list is" , inputs_string )
+			result.HDMIInput = -1
+			// so you just try to access some endpoint , if its there , then tv is on
+			read_result := c.LG.API( "get_volume" )
+			if read_result == "error reading message" {
+				result.Power = false
+			} else if read_result == "timeout while reading message" {
+				result.Power = false
+			} else {
+				result.Power = true
+			}
+			break;
+		case "samsung":
+			fmt.Println( "samsung === todo" )
+			break;
+		case "vizio":
+			result.Volume = c.VIZIO.VolumeGet()
+			current_input := c.VIZIO.InputGetCurrent()
+			switch current_input.Name {
+				case "hdmi1":
+					result.HDMIInput = 1
+					break;
+				case "hdmi2":
+					result.HDMIInput = 2
+					break;
+				case "hdmi3":
+					result.HDMIInput = 3
+					break;
+				case "hdmi4":
+					result.HDMIInput = 4
+					break;
+				default:
+					result.HDMIInput = -1
+					break
+			}
+			x := c.VIZIO.PowerGetState()
+			fmt.Println( "vizio === todo" , x )
+			result.Power = false
+			break;
+		case "hdmicec":
+			c.HDMICEC.PowerOn()
+			break;
+		case "ir":
+			fmt.Println( "ir === todo" )
+			break;
+		case "ir+hdmicec":
+			result.Volume = -1
+			sources := c.HDMICEC.GetSources()
+			for _ , source := range sources {
+				if source.DeviceName == "TV" {
+					result.Power = source.PowerStatus
+				}
+				if source.ActiveSource == true {
+					// utils.PrettyPrint( source )
+					result.HDMIInput = source.HDMIInput
+					result.HDMIVendor = source.Vendor
+					result.HDMIOSDString = source.OSDString
+					result.HDMIPower = source.PowerStatus
+				}
+			}
+			break;
+	}
 	return
 }
 
@@ -329,10 +374,13 @@ func ( c *Controller ) GetPowerStatus() ( result bool ) {
 	result = false
 	switch c.Type{
 		case "lg":
+			// so you just try to access some endpoint , if its there , then tv is on
 			read_result := c.LG.API( "get_volume" )
 			if read_result == "error reading message" {
-				result = true
+				result = false
 			} else if read_result == "timeout while reading message" {
+				result = false
+			} else {
 				result = true
 			}
 			break;
@@ -552,7 +600,26 @@ func ( c *Controller ) SetVolume( volume_level int ) {
 			fmt.Println( "ir === todo" )
 			break;
 		case "ir+hdmicec":
-			fmt.Println( "ir+hdmicec === todo" )
+			fmt.Println( "ir+hdmicec === SetVolume()" )
+			if c.IR_Ready {
+				volume_down := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "volume_down" ].Code
+				volume_up := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "volume_up" ].Code
+				if volume_down != "" && volume_up != "" {
+					fmt.Println( "Resetting Volume" )
+					for i := 0; i < c.Config.VolumeResetLimit; i++ {
+						fmt.Printf( "Volume Down %d of %d\n" , i , c.Config.VolumeResetLimit )
+						c.IR.Transmit( volume_down )
+						time.Sleep( 500 * time.Millisecond )
+					}
+					fmt.Println( "Done With Volume Down" )
+					time.Sleep( 500 * time.Millisecond )
+					for i := 0; i < c.Config.DefaultVolume; i++ {
+						fmt.Printf( "Volume Up %d of %d\n" , i , c.Config.DefaultVolume )
+						c.IR.Transmit( volume_up )
+						time.Sleep( 500 * time.Millisecond )
+					}
+				}
+			}
 			break;
 	}
 	return
