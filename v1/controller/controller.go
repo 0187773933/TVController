@@ -243,10 +243,19 @@ func ( c *Controller ) ResetVideo() {
 			fmt.Println( "vizio === todo" )
 			break;
 		case "hdmicec":
-			fmt.Println( "hdmicec === todo" )
+			power_status := c.HDMICEC.GetPowerStatus()
+			fmt.Println( "Already On ===" , power_status )
+			time.Sleep( 1200 * time.Millisecond )
+			if power_status == false {
+				fmt.Println( "Powering On" )
+				c.HDMICEC.PowerOn()
+			}
+			fmt.Printf( "Setting HDMI %d\n" , c.Config.DefaultInput )
+			c.HDMICEC.SelectHDMI( c.Config.DefaultInput )
 			break;
 		case "ir":
-			fmt.Println( "ir === todo" )
+			power := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "power" ].Code
+			c.IR.Transmit( power )
 			break;
 		case "ir+hdmicec":
 			fmt.Println( "ir+hdmicec === ResetVideo()" )
@@ -276,10 +285,14 @@ func ( c *Controller ) QuickResetVideo() {
 			fmt.Println( "vizio === todo" )
 			break;
 		case "hdmicec":
-			fmt.Println( "hdmicec === todo" )
+			fmt.Println( "Powering On" )
+			c.HDMICEC.PowerOn()
+			fmt.Printf( "Setting HDMI %d\n" , c.Config.DefaultInput )
+			c.HDMICEC.SelectHDMI( c.Config.DefaultInput )
 			break;
 		case "ir":
-			fmt.Println( "ir === todo" )
+			power := c.Config.IRConfig.Remotes[ c.Config.IRConfig.DefaultRemote ].Keys[ "power" ].Code
+			c.IR.Transmit( power )
 			break;
 		case "ir+hdmicec":
 			fmt.Println( "ir+hdmicec === QuickResetVideo()" )
