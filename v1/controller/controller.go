@@ -182,32 +182,56 @@ func ( c *Controller ) Reset() {
 
 func ( c *Controller ) Prepare() {
 	fmt.Println( "Prepare()" )
-	status := c.Status()
-	utils.PrettyPrint( status )
-	if status.Power == false {
-		fmt.Println( "Prepare() --> Power == false" )
-		time.Sleep( 1200 * time.Millisecond )
-		c.PowerOn()
-		time.Sleep( 1200 * time.Millisecond )
-		c.SetInput( c.Config.DefaultInput )
-		time.Sleep( 1200 * time.Millisecond )
-		c.SetVolume( c.Config.DefaultVolume )
-		return
+	switch c.Type{
+		case "lg":
+			c.PowerOn()
+			c.SetInput( c.Config.DefaultInput )
+			c.SetVolume( c.Config.DefaultVolume )
+			break;
+		case "samsung":
+			c.PowerOn()
+			c.SetInput( c.Config.DefaultInput )
+			c.SetVolume( c.Config.DefaultVolume )
+			break;
+		case "vizio":
+			c.PowerOn()
+			c.SetInput( c.Config.DefaultInput )
+			c.SetVolume( c.Config.DefaultVolume )
+			break;
+			fmt.Println( "hdmicec === todo" )
+			break;
+		case "ir":
+			c.PowerOn()
+			break;
+		case "hdmicec":
+		case "ir+hdmicec":
+			status := c.Status()
+			utils.PrettyPrint( status )
+			if status.Power == false {
+				fmt.Println( "Prepare() --> Power == false" )
+				time.Sleep( 1200 * time.Millisecond )
+				c.PowerOn()
+				time.Sleep( 1200 * time.Millisecond )
+				c.SetInput( c.Config.DefaultInput )
+				time.Sleep( 1200 * time.Millisecond )
+				c.SetVolume( c.Config.DefaultVolume )
+				return
+			}
+			if status.HDMIInput != c.Config.DefaultInput {
+				fmt.Println( "Prepare() --> Resetting HDMI Input" )
+				c.SetInput( c.Config.DefaultInput )
+			}
+			if status.Volume != -1 && status.Volume != c.Config.DefaultVolume {
+				fmt.Println( "Prepare() --> Resetting Volume" )
+				c.SetVolume( c.Config.DefaultVolume )
+			}
+			fmt.Println( "Prepare() --> Done" )
+			break;
 	}
-	if status.HDMIInput != c.Config.DefaultInput {
-		fmt.Println( "Prepare() --> Resetting HDMI Input" )
-		c.SetInput( c.Config.DefaultInput )
-	}
-	if status.Volume != -1 && status.Volume != c.Config.DefaultVolume {
-		fmt.Println( "Prepare() --> Resetting Volume" )
-		c.SetVolume( c.Config.DefaultVolume )
-	}
-	fmt.Println( "Prepare() --> Done" )
 	return
 }
 
-
-func ( c *Controller ) ResetVideo( already_on bool ) {
+func ( c *Controller ) ResetVideo() {
 	switch c.Type{
 		case "lg":
 			fmt.Println( "lg === todo" )
@@ -233,6 +257,34 @@ func ( c *Controller ) ResetVideo( already_on bool ) {
 				fmt.Println( "Powering On" )
 				c.HDMICEC.PowerOn()
 			}
+			fmt.Printf( "Setting HDMI %d\n" , c.Config.DefaultInput )
+			c.HDMICEC.SelectHDMI( c.Config.DefaultInput )
+			break;
+	}
+	return
+}
+
+func ( c *Controller ) QuickResetVideo() {
+	switch c.Type{
+		case "lg":
+			fmt.Println( "lg === todo" )
+			break;
+		case "samsung":
+			fmt.Println( "samsung === todo" )
+			break;
+		case "vizio":
+			fmt.Println( "vizio === todo" )
+			break;
+		case "hdmicec":
+			fmt.Println( "hdmicec === todo" )
+			break;
+		case "ir":
+			fmt.Println( "ir === todo" )
+			break;
+		case "ir+hdmicec":
+			fmt.Println( "ir+hdmicec === QuickResetVideo()" )
+			fmt.Println( "Powering On" )
+			c.HDMICEC.PowerOn()
 			fmt.Printf( "Setting HDMI %d\n" , c.Config.DefaultInput )
 			c.HDMICEC.SelectHDMI( c.Config.DefaultInput )
 			break;
